@@ -304,7 +304,7 @@ export const requestPasswordReset = async (req, res) => {
     const { email } = req.body;
 
     const result = await pool.query(
-      "SELECT id, nombre FROM seguridad.personas WHERE email = $1",
+      "SELECT id, nombre FROM seguridad.personas WHERE LOWER(email) = LOWER($1)",
       [email]
     );
 

@@ -25,7 +25,7 @@ router.post("/login", loginLimiter, loginValidator, loginUsuario);
 router.get("/activar/:token", activarCuenta);
 
 // ── Recuperación de Contraseña ────────────────────────────────────────────
-router.post("/recover/send-email",     recoverLimiter, requestPasswordReset);
+router.post("/recover/send-email",     recoverLimiter, recoverValidator, requestPasswordReset);
 router.post("/recover/validate-token", recoverLimiter, validateResetToken);
 router.post("/recover/reset",          resetPasswordValidator, resetPassword);
 
