@@ -48,7 +48,6 @@ export const deleteCategoria = async (req, res) => {
     await pool.query("DELETE FROM categorias WHERE id = $1", [req.params.id]);
     return res.json({ message: "Eliminada" });
   } catch (error) {
-    // 🔥 Agregamos validación para código 23001
     if (error.code === "23503" || error.code === "23001") {
       return res.status(409).json({ message: "No se puede eliminar: Hay productos vinculados a esta categoría." });
     }
@@ -56,7 +55,6 @@ export const deleteCategoria = async (req, res) => {
   }
 };
 
-// --- Endpoints de apoyo para V2 (Lectura rápida) ---
 export const getMarcas = async (req, res) => {
     try {
         const { rows } = await pool.query("SELECT * FROM marcas ORDER BY nombre ASC");
@@ -197,7 +195,6 @@ export const getProductos = async (req, res) => {
   }
 };
 
-// 🔥 MAGIA TRANSACCIONAL: Crea el producto padre y las variantes en un solo movimiento
 export const createProductoCompleto = async (req, res) => {
   const { nombre, descripcion, precio_base, categoria_id, marca_id, departamento_id, activo, matriz } = req.body;
 
@@ -208,8 +205,6 @@ export const createProductoCompleto = async (req, res) => {
 
   try {
     await client.query('BEGIN');
-
-    // 1. Crear Producto Padre
     const productQuery = `
       INSERT INTO productos (nombre, descripcion, precio_base, categoria_id, marca_id, departamento_id, activo)
       VALUES ($1, $2, $3, $4, $5, $6, $7)

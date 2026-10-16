@@ -10,8 +10,6 @@ const pool = new pg.Pool({
   connectionTimeoutMillis: 15000,
   idleTimeoutMillis: 30000 
 });
-
-// El truco de los esquemas
 pool.on('connect', (client) => {
   client.query('SET search_path TO seguridad, inventario, catalogo, ventas, auditoria, reportes, public');
 });
