@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "DanElement Boutique",
+  "short_name": "DanElement",
+  "description": "DanElement Boutique — Tienda en línea y panel administrativo.",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f1115",
+  "background_color": "#0f1115",
+  "icons": [
+    { "src": "/icons/pwa-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/pwa-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

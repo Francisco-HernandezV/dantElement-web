@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+  ],
   build: {
     // esbuild es el minificador por defecto de Vite en producción; lo dejamos
     // explícito para que la minificación de JS quede documentada y garantizada.

@@ -8,11 +8,21 @@ const api = axios.create({
   baseURL: API_URL,
   withCredentials: true
 });
+
+const PUBLIC_ROUTES = [
+  /^\/admin\/productos(\/[^/]+\/detalle)?\/?$/,
+  /^\/admin\/configuracion\/?$/,
+];
+
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const path = (config.url || "").split("?")[0];
+    const isPublicRoute = PUBLIC_ROUTES.some((route) => route.test(path));
+    if (!isPublicRoute) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

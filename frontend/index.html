@@ -1,10 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="es-MX">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f1115" />
+
+    <!-- PWA: manifest y Service Worker escritos a mano (ver public/manifest.webmanifest
+         y public/sw.js). El SW se registra desde src/components/pwa/UpdateToast.jsx. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="DanElement" />
     <meta name="description" content="DanElement Boutique — Panel administrativo y tienda en línea." />
 
     <!-- Tipografía declarada por el sistema de diseño (Montserrat + Poppins) -->
