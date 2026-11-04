@@ -19,6 +19,8 @@ app.use(cors({
   origin: ["http://localhost:5173", "http://127.0.0.1:5173", process.env.BASE_URL].filter(Boolean),
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
+  // Permite al frontend leer el nombre del archivo de las descargas (respaldos).
+  exposedHeaders: ["Content-Disposition"],
 }));
 
 app.use(helmet());

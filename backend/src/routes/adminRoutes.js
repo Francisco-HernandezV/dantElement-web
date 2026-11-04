@@ -56,7 +56,7 @@ router.get("/productos",  getProductos);
 router.get("/productos/:id/detalle", getProductoConImagenes);   // producto + galería
 router.get("/productos/:id/imagenes", getImagenesProducto);     // solo la galería
 router.get("/configuracion", getConfiguracion); // La tienda lee logo/redes/contacto sin login
-router.get("/respaldos/generar", generarRespaldo);
+
 router.post("/respaldos/registrar", registrarRespaldoExterno);
 
 router.get("/alexa/inventario", getInventarioAlexa);
@@ -123,6 +123,7 @@ router.delete("/clientes/:id", checkRole(["rol_admin"]), deleteCliente);
 
 // ── Respaldos (Historial) ──
 router.get("/respaldos", checkRole(["rol_admin"]), getHistorialRespaldos);
+router.get("/respaldos/generar", checkRole(["rol_admin"]), generarRespaldo);
 
 // ── Lectura de catálogos base ──
 router.get("/marcas",       getMarcas);

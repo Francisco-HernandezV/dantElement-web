@@ -49,8 +49,11 @@ export const generarRespaldo = async (req, res) => {
 export const registrarRespaldoExterno = async (req, res) => {
   const secretHeader = req.headers["x-backup-secret"];
   
-  // Validamos la llave compartida de seguridad
-  if (secretHeader !== process.env.BACKUP_SECRET) {
+  const secreto = process.env.BACKUP_SECRET;
+  // Validamos la llave compartida de seguridad. Si BACKUP_SECRET no está
+  // configurada se rechaza todo (antes, sin variable y sin encabezado,
+  // undefined === undefined dejaba pasar la petición).
+  if (!secreto || secretHeader !== secreto) {
     return res.status(403).json({ message: "Acceso denegado. Llave de respaldo incorrecta." });
   }
 
