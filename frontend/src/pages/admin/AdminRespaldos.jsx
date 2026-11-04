@@ -25,25 +25,49 @@ export default function AdminRespaldos() {
     cargarHistorial();
   }, []);
 
-  const handleIniciarRespaldo = () => {
-    setGenerando(true);
-    
-    // Al ser una descarga de archivo, podemos crear un enlace temporal y simular el clic
-    const url = `${api.defaults.baseURL}/admin/respaldos/generar`;
-    
-    const link = document.createElement("a");
-    link.href = url;
-    // Agregamos el token si tu ruta requiere autenticación
-    link.setAttribute("download", ""); 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const [errorRespaldo, setErrorRespaldo] = useState("");
 
-    // Damos un pequeño tiempo para recargar la tabla y ver el nuevo registro
-    setTimeout(() => {
-      cargarHistorial();
+  // La ruta exige sesión de administrador, por eso no basta un <a href>:
+  // se descarga con `api` (que agrega el token) como Blob y luego se guarda.
+  const handleIniciarRespaldo = async () => {
+    setGenerando(true);
+    setErrorRespaldo("");
+    try {
+      const res = await api.get("/admin/respaldos/generar", { responseType: "blob" });
+
+      // Nombre que manda el servidor; si el navegador no puede leerlo, uno local.
+      const disposition = res.headers["content-disposition"] || "";
+      const coincidencia = disposition.match(/filename="?([^";]+)"?/i);
+      const ahora = new Date();
+      const respaldoLocal = `Respaldo_Base_DanElement_${ahora.toISOString().slice(0, 10).replace(/-/g, "")}.backup`;
+      const nombre = coincidencia ? coincidencia[1] : respaldoLocal;
+
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = nombre;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      await cargarHistorial();
+    } catch (error) {
+      // Con responseType "blob" el mensaje de error también llega como Blob.
+      let mensaje = "No se pudo generar el respaldo.";
+      const datos = error.response?.data;
+      if (datos instanceof Blob) {
+        try {
+          mensaje = JSON.parse(await datos.text()).message || mensaje;
+        } catch {
+          // la respuesta no era JSON: se queda el mensaje genérico
+        }
+      }
+      console.error("Error al generar respaldo:", error);
+      setErrorRespaldo(mensaje);
+    } finally {
       setGenerando(false);
-    }, 3000);
+    }
   };
 
   const formatearFecha = (fechaRaw) => {
@@ -94,6 +118,11 @@ export default function AdminRespaldos() {
           <small style={{ color: "#6b7280", fontSize: "11px" }}>
             Por motivos de seguridad, el archivo .backup se descargará automáticamente usando el gestor de tu navegador web.
           </small>
+          {errorRespaldo && (
+            <small role="alert" style={{ color: "#ef4444", fontSize: "12px" }}>
+              {errorRespaldo}
+            </small>
+          )}
         </div>
       </div>
 
