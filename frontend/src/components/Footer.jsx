@@ -59,9 +59,8 @@ function Footer() {
             ))
           ) : (
             <>
-              <a href="/">Envíos y Devoluciones</a>
-              <a href="/">Guía de Tallas</a>
-              <a href="/">Contacto</a>
+              <a href="/terminos">Envíos y cambios</a>
+              <a href="/privacidad">Privacidad</a>
             </>
           )}
         </div>
@@ -86,6 +85,11 @@ function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
+        <p className="footer-legal" style={{ marginBottom: "8px", fontSize: "0.85rem" }}>
+          <a href="/terminos" style={{ color: "var(--text-muted)" }}>Términos y condiciones</a>
+          <span aria-hidden="true" style={{ color: "var(--text-muted)" }}> · </span>
+          <a href="/privacidad" style={{ color: "var(--text-muted)" }}>Aviso de privacidad</a>
+        </p>
         <p>&copy; {new Date().getFullYear()} {nombre}. Todos los derechos reservados.</p>
       </div>
     </footer>
