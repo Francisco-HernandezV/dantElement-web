@@ -22,6 +22,9 @@ export const registerValidator = [
     .notEmpty().withMessage("El email es obligatorio")
     .isEmail().withMessage("Debe ser un email válido (ej: usuario@dominio.com)")
     .normalizeEmail(),
+  body("acepta_terminos")
+    .custom((valor) => valor === true || valor === "true")
+    .withMessage("Debes aceptar los Términos y condiciones y el Aviso de privacidad"),
   body("password")
     .trim()
     .notEmpty().withMessage("La contraseña es obligatoria")
@@ -73,7 +76,22 @@ export const recoverValidator = [
   handleValidationErrors
 ];
 
+// Validar el código de recuperación: exige el correo para limitar los
+// intentos por cuenta (5 como máximo).
+const correoRecuperacion = body("email")
+  .trim()
+  .notEmpty().withMessage("Falta el correo electrónico. Si usas la app, actualízala a la versión más reciente.")
+  .isEmail().withMessage("Email inválido")
+  .normalizeEmail();
+
+export const validateCodeValidator = [
+  correoRecuperacion,
+  body("token").trim().notEmpty().withMessage("Código faltante"),
+  handleValidationErrors
+];
+
 export const resetPasswordValidator = [
+  correoRecuperacion,
   body("token").notEmpty().withMessage("Token faltante"),
   
   body("nueva_password")

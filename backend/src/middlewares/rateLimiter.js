@@ -19,3 +19,16 @@ export const recoverLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+// Intentos del código de recuperación por IP (segunda barrera; el límite
+// principal es de 5 intentos por cuenta en userController). Solo cuentan
+// las respuestas con error.
+export const recoverCodeLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 5,
+    skipSuccessfulRequests: true,
+    message: {
+        message: "Demasiados intentos con el código de recuperación. Espera 15 minutos y vuelve a intentarlo."
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});

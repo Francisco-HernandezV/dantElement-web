@@ -14,8 +14,8 @@ import {
   adminAsignarPinVendedor
 } from "../controllers/userController.js";
 import { verifyToken, checkRole } from "../middlewares/authMiddleware.js";
-import { registerValidator, loginValidator, recoverValidator, resetPasswordValidator } from "../middlewares/validators.js";
-import { loginLimiter, recoverLimiter } from "../middlewares/rateLimiter.js";
+import { registerValidator, loginValidator, recoverValidator, validateCodeValidator, resetPasswordValidator } from "../middlewares/validators.js";
+import { loginLimiter, recoverLimiter, recoverCodeLimiter } from "../middlewares/rateLimiter.js";
 
 const router = express.Router();
 
@@ -26,8 +26,8 @@ router.get("/activar/:token", activarCuenta);
 
 // ── Recuperación de Contraseña ────────────────────────────────────────────
 router.post("/recover/send-email",     recoverLimiter, recoverValidator, requestPasswordReset);
-router.post("/recover/validate-token", recoverLimiter, validateResetToken);
-router.post("/recover/reset",          resetPasswordValidator, resetPassword);
+router.post("/recover/validate-token", recoverCodeLimiter, validateCodeValidator, validateResetToken);
+router.post("/recover/reset",          recoverCodeLimiter, resetPasswordValidator, resetPassword);
 
 // ── Rutas Protegidas (Requieren Token) ────────────────────────────────────
 router.post("/logout", verifyToken, logoutUsuario);
