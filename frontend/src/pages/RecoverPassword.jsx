@@ -43,12 +43,14 @@ function RecoverPassword() {
     e.preventDefault();
     setMensaje("");
     try {
-      await api.post("/users/recover/validate-token", { token });
+      // El correo identifica la cuenta: el servidor permite 5 códigos
+      // incorrectos por cuenta y luego bloquea la recuperación unos minutos.
+      await api.post("/users/recover/validate-token", { email, token });
       setStep(3);
       setMensaje("");
     } catch (error) {
       console.error("Error al validar token:", error);
-      setMensaje("❌ Código inválido o expirado");
+      setMensaje(`❌ ${error.response?.data?.message || "Código inválido o expirado"}`);
     }
   };
 
@@ -60,8 +62,9 @@ function RecoverPassword() {
       return;
     }
     try {
-      await api.post("/users/recover/reset", { 
-        token, 
+      await api.post("/users/recover/reset", {
+        email,
+        token,
         nueva_password: nuevaPass 
       });
       setMensaje("✅ Contraseña actualizada correctamente");

@@ -59,11 +59,15 @@ function Footer() {
             ))
           ) : (
             <>
-              <a href="/">Envíos y Devoluciones</a>
-              <a href="/">Guía de Tallas</a>
               <a href="/">Contacto</a>
             </>
           )}
+        </div>
+
+        <div className="footer-column">
+          <h4>Legal</h4>
+          <a href="/terminos">Términos y condiciones</a>
+          <a href="/privacidad">Aviso de privacidad</a>
         </div>
 
         <div className="footer-column">

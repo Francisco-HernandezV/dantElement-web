@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { hashPin } from "../services/tokenService.js";
 import { sendVerificationEmail, sendResetEmail } from "../services/mailService.js";
 import { generateToken, hashToken } from "../services/tokenService.js";
+import { asegurarColumnasSeguridad, TERMINOS_VERSION, AVISO_VERSION } from "../config/schema.js";
 
 const VERIF_EXP_HOURS = Number.parseInt(process.env.VERIFICATION_TOKEN_EXP_HOURS || "24", 10);
 const RESET_EXP_HOURS = Number.parseInt(process.env.RESET_TOKEN_EXP_HOURS || "1", 10);
@@ -20,23 +21,25 @@ function nowPlusMinutes(mins) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  REGISTRO
+//  REGISTRO (VINCULACIÓN OMNICANAL SOLO POR CORREO)
 // ════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
-//  REGISTRO (ACTUALIZADO CON LÓGICA DE CLIENTES OMNICANAL)
-// ════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
-//  REGISTRO (ACTUALIZADO CON BÚSQUEDA POR TELÉFONO O CORREO)
-// ════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
-//  REGISTRO (VINCULACIÓN SILENCIOSA OMNICANAL)
-// ════════════════════════════════════════════════════════════
+//
+// Si el correo ya pertenece a un cliente de mostrador (registrado en el POS,
+// sin contraseña), la cuenta web se crea sobre esa MISMA fila para conservar
+// su historial de compras. La vinculación es SOLO por correo: quien se
+// registre ya no puede apropiarse de la fila de otra persona usando su
+// teléfono. Además, en una fila existente no se modifica nombre, teléfono ni
+// fecha de nacimiento: la cuenta sigue inactiva hasta que el dueño del correo
+// la confirma, y después puede corregir sus datos desde su perfil.
 export const registrarUsuario = async (req, res) => {
   const client = await pool.connect(); // Usamos client para manejar la transacción
 
   try {
+    await asegurarColumnasSeguridad();
+
     // En el registro web la fecha de nacimiento es obligatoria (la valida
     // registerValidator). El RFC no se pide aquí, solo en el alta desde el POS.
+    // registerValidator también exige acepta_terminos === true.
     const { nombre, email, password, telefono_contacto, fecha_nacimiento } = req.body;
     const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
@@ -46,18 +49,26 @@ export const registrarUsuario = async (req, res) => {
     const tel = telefono_contacto?.trim() || null;
     const nacimiento = fecha_nacimiento?.trim() || null;
 
-    // 1. 🌟 OMNICANAL: ¿ya existe esa persona? (por correo o teléfono)
+    // 1. ¿Ya existe una persona con ese correo? (el teléfono NO se usa para vincular)
     const { rows: encontradas } = await client.query(
-      `SELECT id, password_hash FROM seguridad.personas
+      `SELECT id, password_hash, email_verificado, cuenta_activa, es_empleado
+         FROM seguridad.personas
         WHERE LOWER(email) = LOWER($1)
-           OR ($2::text IS NOT NULL AND telefono = $2)
-        LIMIT 1`,
-      [mail, tel]
+        LIMIT 1
+        FOR UPDATE`,
+      [mail]
     );
     const existente = encontradas[0] || null;
 
-    // 2. Si ya tiene contraseña, es una cuenta web existente
-    if (existente?.password_hash) {
+    // 2. Cuenta ya en uso: verificada, activa o de un empleado.
+    //    Una cuenta web que nunca se confirmó sí puede registrarse de nuevo
+    //    (así nadie bloquea un correo ajeno registrándolo primero).
+    const cuentaEnUso = existente?.password_hash && (
+      existente.email_verificado === true ||
+      existente.cuenta_activa === true ||
+      existente.es_empleado === true
+    );
+    if (cuentaEnUso) {
       await client.query('ROLLBACK');
       return res.status(400).json({ message: "Este correo electrónico ya se encuentra registrado." });
     }
@@ -65,34 +76,42 @@ export const registrarUsuario = async (req, res) => {
     let userId;
 
     if (existente) {
-      // 3a. Era cliente de mostrador (sin login): se le añaden credenciales
-      //     sobre la MISMA fila, conservando su historial de compras.
+      // 3a. Cliente de mostrador o registro web sin confirmar: solo se
+      //     agregan las credenciales. Los demás datos no cambian hasta que
+      //     el titular confirme el correo.
       const upd = await client.query(
         `UPDATE seguridad.personas
-            SET nombre = $1,
-                email = COALESCE(email, $2),
-                telefono = COALESCE(telefono, $3),
-                fecha_nacimiento = COALESCE($4::date, fecha_nacimiento),
-                password_hash = $5,
+            SET password_hash = $1,
                 es_cliente = TRUE,
                 cuenta_activa = FALSE,
                 email_verificado = FALSE,
                 token_version = COALESCE(token_version, 0),
+                terminos_aceptados_en = NOW(),
+                terminos_version = $2,
+                aviso_version = $3,
                 actualizado_en = NOW()
-          WHERE id = $6
+          WHERE id = $4
           RETURNING id`,
-        [nombre.trim(), mail, tel, nacimiento, hashedPassword, existente.id]
+        [hashedPassword, TERMINOS_VERSION, AVISO_VERSION, existente.id]
       );
       userId = upd.rows[0].id;
+
+      // Los enlaces de activación anteriores dejan de servir.
+      await client.query(
+        `UPDATE seguridad.tokens SET usado = TRUE
+          WHERE usuario_id = $1 AND tipo = 'verificacion' AND usado = FALSE`,
+        [userId]
+      );
     } else {
       // 3b. Persona nueva con cuenta web
       const userResult = await client.query(
         `INSERT INTO seguridad.personas
            (nombre, email, password_hash, telefono, fecha_nacimiento, cuenta_activa,
-            email_verificado, es_cliente, es_empleado, rol_id, token_version)
-         VALUES ($1, $2, $3, $4, $5, FALSE, FALSE, TRUE, FALSE, 4, 0)
+            email_verificado, es_cliente, es_empleado, rol_id, token_version,
+            terminos_aceptados_en, terminos_version, aviso_version)
+         VALUES ($1, $2, $3, $4, $5, FALSE, FALSE, TRUE, FALSE, 4, 0, NOW(), $6, $7)
          RETURNING id`,
-        [nombre.trim(), mail, hashedPassword, tel, nacimiento]
+        [nombre.trim(), mail, hashedPassword, tel, nacimiento, TERMINOS_VERSION, AVISO_VERSION]
       );
       userId = userResult.rows[0].id;
     }
@@ -111,9 +130,9 @@ export const registrarUsuario = async (req, res) => {
 
     // 5. Enviar el correo electrónico (No detiene el registro si falla)
     try {
-      await sendVerificationEmail(email, nombre, token);
+      await sendVerificationEmail(mail, nombre, token);
     } catch (error_) {
-      console.error("Error enviando email:", error_);
+      console.error("Error enviando email de verificación:", error_.message);
     }
 
     return res.status(201).json({
@@ -121,14 +140,14 @@ export const registrarUsuario = async (req, res) => {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK'); // Deshacemos todo si hay un error
-    
+    await client.query('ROLLBACK').catch(() => {}); // Deshacemos todo si hay un error
+
     if (error.code === "23505") {
       // Código 23505 = Unique Violation. Significa que el correo ya está en seguridad.personas
       // Mensaje seguro que no revela más información de la necesaria.
       return res.status(400).json({ message: "Este correo electrónico ya se encuentra registrado." });
     }
-    
+
     console.error("Error registrarUsuario:", error);
     return res.status(500).json({ message: "Error interno del servidor al procesar el registro." });
   } finally {
@@ -299,12 +318,28 @@ export const logoutUsuario = async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  RECUPERACIÓN DE CONTRASEÑA
 // ════════════════════════════════════════════════════════════
+// Máximo de códigos incorrectos por cuenta antes de bloquear la recuperación.
+const RECOVERY_MAX_INTENTOS = 5;
+const RECOVERY_LOCK_MIN = Number.parseInt(process.env.RECOVERY_LOCK_MINUTES || "15", 10);
+
+function minutosRestantes(hasta) {
+  return Math.max(1, Math.ceil((new Date(hasta).getTime() - Date.now()) / 60000));
+}
+
+function mensajeBloqueo(hasta) {
+  const min = minutosRestantes(hasta);
+  return `Superaste el número de intentos para el código de recuperación. Espera ${min} minuto${min === 1 ? "" : "s"} y solicita un código nuevo.`;
+}
+
 export const requestPasswordReset = async (req, res) => {
   try {
+    await asegurarColumnasSeguridad();
     const { email } = req.body;
 
     const result = await pool.query(
-      "SELECT id, nombre FROM seguridad.personas WHERE LOWER(email) = LOWER($1)",
+      `SELECT id, nombre, recovery_lock_until
+         FROM seguridad.personas
+        WHERE LOWER(email) = LOWER($1)`,
       [email]
     );
 
@@ -313,6 +348,12 @@ export const requestPasswordReset = async (req, res) => {
     }
     const user = result.rows[0];
 
+    // Mientras la recuperación esté bloqueada no se generan códigos nuevos;
+    // si no, el bloqueo se podría saltar pidiendo un código tras otro.
+    if (user.recovery_lock_until && new Date(user.recovery_lock_until) > new Date()) {
+      return res.status(429).json({ message: mensajeBloqueo(user.recovery_lock_until) });
+    }
+
     // Invalidar tokens anteriores
     await pool.query(
       `UPDATE tokens SET usado = TRUE
@@ -320,10 +361,18 @@ export const requestPasswordReset = async (req, res) => {
       [user.id]
     );
 
-    // Generar nuevo token numérico de 6 dígitos
-    const token     = crypto.randomInt(100000, 999999).toString();
+    // Generar nuevo token numérico de 6 dígitos (crypto, no Math.random)
+    const token     = crypto.randomInt(100000, 1000000).toString();
     const tokenHash = hashToken(token);
     const expiry    = nowPlusHours(RESET_EXP_HOURS);
+
+    // Código nuevo: el contador de intentos empieza de cero.
+    await pool.query(
+      `UPDATE seguridad.personas
+          SET recovery_attempts = 0, recovery_lock_until = NULL
+        WHERE id = $1`,
+      [user.id]
+    );
 
     await pool.query(
       `INSERT INTO tokens (usuario_id, tipo, token_hash, expira_en, usado)
@@ -334,7 +383,7 @@ export const requestPasswordReset = async (req, res) => {
     try {
       await sendResetEmail(email, user.nombre || "Usuario", token);
     } catch (error_) {
-      console.error("Error enviando email:", error_);
+      console.error("Error enviando email de recuperación:", error_.message);
     }
 
     return res.json({ message: "Correo enviado con éxito. Revisa tu bandeja." });
@@ -344,41 +393,107 @@ export const requestPasswordReset = async (req, res) => {
   }
 };
 
+/**
+ * Comprueba el código de recuperación de UNA cuenta (correo + código).
+ * Cada código incorrecto suma un intento; al llegar a 5 se bloquea la
+ * recuperación de esa cuenta durante RECOVERY_LOCK_MIN minutos y el código
+ * vigente se invalida (hay que pedir uno nuevo al terminar la espera).
+ *
+ * Devuelve { ok: true, tokenId, usuarioId } o { ok: false, status, message }.
+ */
+async function verificarCodigoRecuperacion(email, codigo) {
+  if (!email) {
+    // Las versiones anteriores de la web y la app solo enviaban el código.
+    return {
+      ok: false,
+      status: 400,
+      message: "Falta el correo electrónico. Si usas la app, actualízala a la versión más reciente.",
+    };
+  }
+
+  const { rows: personas } = await pool.query(
+    `SELECT id, recovery_attempts, recovery_lock_until
+       FROM seguridad.personas
+      WHERE LOWER(email) = LOWER($1)`,
+    [email]
+  );
+  const persona = personas[0];
+  if (!persona) {
+    return { ok: false, status: 400, message: "Código inválido o expirado" };
+  }
+
+  if (persona.recovery_lock_until && new Date(persona.recovery_lock_until) > new Date()) {
+    return { ok: false, status: 429, message: mensajeBloqueo(persona.recovery_lock_until) };
+  }
+
+  const { rows: tokens } = await pool.query(
+    `SELECT id, expira_en
+       FROM tokens
+      WHERE token_hash = $1
+        AND usuario_id = $2
+        AND tipo = 'recuperacion'
+        AND usado = FALSE`,
+    [hashToken(String(codigo).trim()), persona.id]
+  );
+  const tkn = tokens[0];
+
+  if (tkn && new Date(tkn.expira_en) >= new Date()) {
+    return { ok: true, tokenId: tkn.id, usuarioId: persona.id };
+  }
+
+  // Código incorrecto o vencido: cuenta como intento fallido.
+  const intentos = (persona.recovery_attempts || 0) + 1;
+
+  if (intentos >= RECOVERY_MAX_INTENTOS) {
+    const hasta = nowPlusMinutes(RECOVERY_LOCK_MIN);
+    await pool.query(
+      `UPDATE seguridad.personas
+          SET recovery_attempts = 0, recovery_lock_until = $1
+        WHERE id = $2`,
+      [hasta, persona.id]
+    );
+    await pool.query(
+      `UPDATE tokens SET usado = TRUE
+        WHERE usuario_id = $1 AND tipo = 'recuperacion' AND usado = FALSE`,
+      [persona.id]
+    );
+    return { ok: false, status: 429, message: mensajeBloqueo(hasta) };
+  }
+
+  await pool.query(
+    `UPDATE seguridad.personas SET recovery_attempts = $1 WHERE id = $2`,
+    [intentos, persona.id]
+  );
+  const quedan = RECOVERY_MAX_INTENTOS - intentos;
+  return {
+    ok: false,
+    status: 400,
+    message: `Código inválido o expirado. Te quedan ${quedan} intento${quedan === 1 ? "" : "s"}.`,
+  };
+}
+
 export const validateResetToken = async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ message: "Token inválido" });
+    await asegurarColumnasSeguridad();
+    const { email, token } = req.body;
+    if (!token) return res.status(400).json({ message: "Código inválido" });
 
-    const tokenHash = hashToken(token);
-
-    const result = await pool.query(
-      `SELECT id, expira_en
-       FROM tokens
-       WHERE token_hash = $1
-         AND tipo = 'recuperacion'
-         AND usado = FALSE`,
-      [tokenHash]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(400).json({ message: "Token inválido o expirado" });
-    }
-    const row = result.rows[0];
-
-    if (new Date(row.expira_en) < new Date()) {
-      return res.status(400).json({ message: "Token inválido o expirado" });
+    const resultado = await verificarCodigoRecuperacion(email, token);
+    if (!resultado.ok) {
+      return res.status(resultado.status).json({ message: resultado.message });
     }
 
-    return res.json({ message: "Token válido" });
+    return res.json({ message: "Código válido" });
   } catch (error) {
     console.error(error);
-    return res.status(400).json({ message: "Error al validar token" });
+    return res.status(500).json({ message: "Error al validar el código" });
   }
 };
 
 export const resetPassword = async (req, res) => {
   try {
-    const { token, nueva_password } = req.body;
+    await asegurarColumnasSeguridad();
+    const { email, token, nueva_password } = req.body;
     if (!token || !nueva_password) {
       return res.status(400).json({ message: "Faltan datos" });
     }
@@ -387,36 +502,29 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Contraseña no cumple requisitos" });
     }
 
-    const tokenHash = hashToken(token);
-
-    const result = await pool.query(
-      `SELECT id, usuario_id, expira_en
-       FROM tokens
-       WHERE token_hash = $1
-         AND tipo = 'recuperacion'
-         AND usado = FALSE`,
-      [tokenHash]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(400).json({ message: "Token inválido o expirado" });
-    }
-    const row = result.rows[0];
-
-    if (new Date(row.expira_en) < new Date()) {
-      return res.status(400).json({ message: "Token inválido o expirado" });
+    const resultado = await verificarCodigoRecuperacion(email, token);
+    if (!resultado.ok) {
+      return res.status(resultado.status).json({ message: resultado.message });
     }
 
     const hashed = await bcrypt.hash(nueva_password, BCRYPT_ROUNDS);
 
+    // Nueva contraseña: se limpian los contadores y se cierran las sesiones
+    // abiertas (token_version + 1) por si alguien más tenía acceso.
     await pool.query(
       `UPDATE seguridad.personas
-       SET password_hash = $1, actualizado_en = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [hashed, row.usuario_id]
+          SET password_hash = $1,
+              recovery_attempts = 0,
+              recovery_lock_until = NULL,
+              login_attempts = 0,
+              lock_until = NULL,
+              token_version = COALESCE(token_version, 0) + 1,
+              actualizado_en = CURRENT_TIMESTAMP
+        WHERE id = $2`,
+      [hashed, resultado.usuarioId]
     );
 
-    await pool.query(`UPDATE tokens SET usado = TRUE WHERE id = $1`, [row.id]);
+    await pool.query(`UPDATE tokens SET usado = TRUE WHERE id = $1`, [resultado.tokenId]);
 
     return res.json({ message: "Contraseña actualizada correctamente" });
   } catch (e) {

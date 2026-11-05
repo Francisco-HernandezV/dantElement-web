@@ -10,6 +10,7 @@ function Register() {
     password: "",
     telefono_contacto: "",
     fecha_nacimiento: "",
+    acepta_terminos: false,
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -17,7 +18,8 @@ function Register() {
   const [errores, setErrores] = useState({});
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const valor = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setForm({ ...form, [e.target.name]: valor });
     if (errores[e.target.name]) {
       setErrores({ ...errores, [e.target.name]: null });
     }
@@ -28,10 +30,16 @@ function Register() {
     setMensaje("");
     setErrores({});
 
+    if (!form.acepta_terminos) {
+      setErrores({ acepta_terminos: "Debes aceptar los Términos y condiciones y el Aviso de privacidad" });
+      setMensaje("❌ Por favor corrige los errores indicados.");
+      return;
+    }
+
     try {
       await api.post("/users/register", form);
       setMensaje("✅ Registro exitoso. Revisa tu correo para activar la cuenta.");
-      setForm({ nombre: "", email: "", password: "", telefono_contacto: "", fecha_nacimiento: "" });
+      setForm({ nombre: "", email: "", password: "", telefono_contacto: "", fecha_nacimiento: "", acepta_terminos: false });
     } catch (error) {
       if (error.response?.data?.errors) {
         const erroresBackend = {};
@@ -53,7 +61,7 @@ function Register() {
         <span className="auth-brand-sub">Boutique</span>
       </div>
       <h2>Crear Cuenta</h2>
-      <p className="form-subtitle">Regístrate para comprar y seguir tus pedidos.</p>
+      <p className="form-subtitle">Crea tu cuenta para guardar tus datos de contacto con la tienda.</p>
 
       <form onSubmit={handleSubmit}>
         
@@ -150,6 +158,33 @@ function Register() {
           </button>
 
           {errores.password && <small style={{ color: "red", display: "block", textAlign: "left" }}>{errores.password}</small>}
+        </div>
+
+        {/* AVISO SIMPLIFICADO + ACEPTACIÓN (obligatoria) */}
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "left", lineHeight: 1.5, margin: "0 0 12px" }}>
+          El Lic. José Daniel Hernández Pérez (DanElement Boutique) usará tu nombre, correo, fecha de nacimiento y,
+          si lo das, tu teléfono para crear y administrar tu cuenta, registrar tus compras y apartados,
+          comunicarse contigo y proteger tu cuenta. No tratamos datos sensibles ni te enviaremos publicidad.
+          Consulta el <Link to="/privacidad" target="_blank" rel="noopener noreferrer">Aviso de privacidad</Link>.
+        </p>
+        <div style={{ marginBottom: "15px", textAlign: "left" }}>
+          <label htmlFor="acepta_terminos" style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "13px", cursor: "pointer" }}>
+            <input
+              id="acepta_terminos"
+              type="checkbox"
+              name="acepta_terminos"
+              checked={form.acepta_terminos}
+              onChange={handleChange}
+              style={{ width: "auto", marginTop: "3px" }}
+            />
+            <span>
+              Soy mayor de 18 años, acepto los{" "}
+              <Link to="/terminos" target="_blank" rel="noopener noreferrer">Términos y condiciones</Link>{" "}
+              y he leído el{" "}
+              <Link to="/privacidad" target="_blank" rel="noopener noreferrer">Aviso de privacidad</Link>.
+            </span>
+          </label>
+          {errores.acepta_terminos && <small style={{ color: "red", display: "block", textAlign: "left" }}>{errores.acepta_terminos}</small>}
         </div>
 
         <button type="submit">Registrarse</button>
