@@ -2,6 +2,8 @@ import pool from "../config/db.js";
 import { borrarCarpetaProducto } from "../config/cloudinary.js";
 import bcrypt from "bcryptjs";
 import * as xlsx from "xlsx";
+import { asegurarColumnasSeguridad } from "../config/schema.js";
+import { marcarEliminacion, tieneApartadoActivo } from "../services/cuentaService.js";
 
 export const getCategorias = async (req, res) => {
   try {
@@ -426,6 +428,7 @@ export const getClientes = async (req, res) => {
 
 export const createCliente = async (req, res) => {
   try {
+    await asegurarColumnasSeguridad();
     // En el POS, tanto el RFC como la fecha de nacimiento son OPCIONALES
     const { nombre, telefono, email, rfc, notas, fecha_nacimiento } = req.body;
     if (!nombre?.trim()) return res.status(400).json({ message: "El nombre es obligatorio" });
@@ -439,8 +442,9 @@ export const createCliente = async (req, res) => {
     if (tel || mail) {
       const { rows } = await pool.query(
         `SELECT id, es_cliente FROM seguridad.personas
-          WHERE ($1::text IS NOT NULL AND telefono = $1)
-             OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2))
+          WHERE eliminado_en IS NULL
+            AND (($1::text IS NOT NULL AND telefono = $1)
+             OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2)))
           LIMIT 1`,
         [tel, mail]
       );
@@ -486,6 +490,12 @@ export const createCliente = async (req, res) => {
 
     return res.status(201).json(result.rows[0]);
   } catch (error) {
+    if (error.code === "23505") {
+      // El correo pertenece a una cuenta con eliminación pendiente.
+      return res.status(400).json({
+        message: "Ese correo pertenece a una cuenta que se está eliminando. Registra al cliente sin correo o con otro.",
+      });
+    }
     console.error("createCliente:", error);
     return res.status(500).json({ message: "Error al crear cliente" });
   }
@@ -513,20 +523,50 @@ export const updateCliente = async (req, res) => {
 };
 
 export const deleteCliente = async (req, res) => {
+  // "Eliminar cliente" del panel: misma regla que cuando el cliente elimina su
+  // cuenta. Se oculta y bloquea de inmediato y sus datos personales se borran
+  // (anonimizan) a los 30 días; sus ventas y apartados se conservan.
+  // Si la persona además es empleado, solo deja de ser cliente.
+  const client = await pool.connect();
   try {
-    // Baja lógica: ventas y apartados históricos referencian a esta persona,
-    // por eso nunca se borra la fila; solo deja de ser cliente.
-    const result = await pool.query(
-      `UPDATE seguridad.personas
-          SET es_cliente = FALSE, actualizado_en = NOW()
+    await asegurarColumnasSeguridad();
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT id, es_empleado FROM seguridad.personas
         WHERE id = $1 AND es_cliente = TRUE
-        RETURNING id`,
+        FOR UPDATE`,
       [req.params.id]
     );
-    return result.rows.length ? res.json({ message: "Eliminado" }) : res.status(404).json({ message: "No encontrado" });
+    const persona = rows[0];
+    if (!persona) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "No encontrado" });
+    }
+
+    if (await tieneApartadoActivo(client, persona.id)) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: "Este cliente tiene un apartado activo. Liquídalo o cancélalo antes de eliminarlo.",
+      });
+    }
+
+    if (persona.es_empleado) {
+      await client.query(
+        `UPDATE seguridad.personas SET es_cliente = FALSE, actualizado_en = NOW() WHERE id = $1`,
+        [persona.id]
+      );
+    } else {
+      await marcarEliminacion(client, persona.id);
+    }
+
+    await client.query("COMMIT");
+    return res.json({ message: "Eliminado" });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
     console.error("deleteCliente:", error);
     return res.status(500).json({ message: "Error al eliminar cliente" });
+  } finally {
+    client.release();
   }
 };
 

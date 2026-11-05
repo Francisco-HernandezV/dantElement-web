@@ -16,6 +16,7 @@ const RecoverPassword   = lazy(() => import("./pages/RecoverPassword"));
 const AccountActivation = lazy(() => import("./pages/AccountActivation"));
 const Terminos          = lazy(() => import("./pages/legal/Terminos"));
 const Privacidad        = lazy(() => import("./pages/legal/Privacidad"));
+const EliminarCuenta    = lazy(() => import("./pages/legal/EliminarCuenta"));
 
 // ── VISTAS PRIVADAS / USUARIO ──
 const UserProfile       = lazy(() => import("./pages/UserProfile"));
@@ -74,6 +75,7 @@ function App() {
           <Route path="/activar/:token"     element={<AccountActivation />} />
           <Route path="/terminos"           element={<Terminos />} />
           <Route path="/privacidad"         element={<Privacidad />} />
+          <Route path="/eliminar-cuenta"    element={<EliminarCuenta />} />
           <Route path="/error-400"          element={<Error400 />} />
           <Route path="/error-500"          element={<Error500 />} />
 

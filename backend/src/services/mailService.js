@@ -74,3 +74,32 @@ export async function sendResetEmail(to, name, token) {
     throw error; 
   }
 }
+export async function sendAccountDeletionEmail(to, name, fechaAnonimizacion) {
+  const fecha = new Date(fechaAnonimizacion).toLocaleDateString("es-MX", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "America/Mexico_City",
+  });
+  const html = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #0d47a1;">Recibimos tu solicitud para eliminar tu cuenta</h2>
+      <p>Hola ${name || "Usuario"},</p>
+      <p>Tu cuenta de DanElement Boutique quedó desactivada. El <b>${fecha}</b> se borrarán
+         definitivamente tus datos personales (nombre, correo, teléfono y fecha de nacimiento).</p>
+      <p>Tus compras y apartados se conservan sin datos que te identifiquen, porque la ley
+         nos obliga a guardar esos registros.</p>
+      <p><b>¿Fue un error?</b> Inicia sesión con tu correo y contraseña antes de esa fecha y la
+         eliminación se cancelará.</p>
+      <p style="font-size: 12px; color: #888;">Dudas: danelementboutique@gmail.com</p>
+    </div>
+  `;
+  try {
+    const info = await transporter.sendMail({
+      from: `"DanElement Boutique" <usielhernandez.202318@gmail.com>`,
+      to,
+      subject: "Tu cuenta se eliminará en 30 días",
+      html
+    });
+    console.log("✅ Correo de eliminación de cuenta enviado. ID:", info.messageId);
+  } catch (error) {
+    console.error("❌ Error enviando correo de eliminación de cuenta:", error.message);
+  }
+}
