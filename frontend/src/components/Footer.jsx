@@ -59,10 +59,15 @@ function Footer() {
             ))
           ) : (
             <>
-              <a href="/terminos">Envíos y cambios</a>
-              <a href="/privacidad">Privacidad</a>
+              <a href="/">Contacto</a>
             </>
           )}
+        </div>
+
+        <div className="footer-column">
+          <h4>Legal</h4>
+          <a href="/terminos">Términos y condiciones</a>
+          <a href="/privacidad">Aviso de privacidad</a>
         </div>
 
         <div className="footer-column">
@@ -85,11 +90,6 @@ function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
-        <p className="footer-legal" style={{ marginBottom: "8px", fontSize: "0.85rem" }}>
-          <a href="/terminos" style={{ color: "var(--text-muted)" }}>Términos y condiciones</a>
-          <span aria-hidden="true" style={{ color: "var(--text-muted)" }}> · </span>
-          <a href="/privacidad" style={{ color: "var(--text-muted)" }}>Aviso de privacidad</a>
-        </p>
         <p>&copy; {new Date().getFullYear()} {nombre}. Todos los derechos reservados.</p>
       </div>
     </footer>

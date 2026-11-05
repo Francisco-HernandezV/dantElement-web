@@ -486,7 +486,7 @@ button:active { transform: translateY(0); }
    4. FOOTER (GLOBAL)
    ========================================= */
 .site-footer { background: var(--bg-footer); border-top: 1px solid var(--border-color); padding: 60px 5% 20px 5%; margin-top: auto; }
-.footer-content { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-content { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
 .footer-column h4 { color: var(--text-main); margin-bottom: 20px; font-size: 1rem; text-transform: uppercase; }
 .footer-column a { display: block; color: var(--text-muted); margin-bottom: 10px; font-size: 0.9rem; }
 .footer-column a:hover { color: var(--color-accent); }
