@@ -68,6 +68,7 @@ function Footer() {
           <h4>Legal</h4>
           <a href="/terminos">Términos y condiciones</a>
           <a href="/privacidad">Aviso de privacidad</a>
+          <a href="/eliminar-cuenta">Eliminar mi cuenta</a>
         </div>
 
         <div className="footer-column">

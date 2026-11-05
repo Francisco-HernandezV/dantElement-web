@@ -11,7 +11,8 @@ import {
   updateProfile,
   forcePasswordChange,
   actualizarPin,
-  adminAsignarPinVendedor
+  adminAsignarPinVendedor,
+  eliminarCuenta
 } from "../controllers/userController.js";
 import { verifyToken, checkRole } from "../middlewares/authMiddleware.js";
 import { registerValidator, loginValidator, recoverValidator, validateCodeValidator, resetPasswordValidator } from "../middlewares/validators.js";
@@ -34,6 +35,7 @@ router.post("/logout", verifyToken, logoutUsuario);
 router.get("/verify",  verifyToken, (req, res) => res.sendStatus(200));
 router.get("/profile", verifyToken, getProfile);
 router.put("/profile", verifyToken, updateProfile);
+router.post("/eliminar-cuenta", verifyToken, eliminarCuenta);
 
 router.post("/cambiar-pin",       verifyToken, checkRole(['rol_admin','rol_vendedor','rol_gestor_inventario','rol_cliente']), actualizarPin);
 router.post("/admin/asignar-pin", verifyToken, checkRole(['rol_admin']),  adminAsignarPinVendedor);

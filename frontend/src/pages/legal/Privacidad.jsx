@@ -231,9 +231,13 @@ function Privacidad() {
         ya se ejerció. Le explicaremos el motivo.
       </p>
       <p>
-        <strong>Cancelación y baja de cuenta:</strong> cuando proceda, sus datos se bloquearán y después se
-        suprimirán. Los registros de ventas y pagos que la ley obliga a conservar se mantendrán sin datos que le
-        identifiquen, o bloqueados, durante el plazo legal.
+        <strong>Cancelación y eliminación de cuenta:</strong> puede eliminar su cuenta usted mismo desde su perfil,
+        en el sitio web o en la app, o pedirlo por los medios anteriores. La cuenta se bloquea de inmediato y, a los
+        30 días, se suprimen su nombre, correo, teléfono, fecha de nacimiento, RFC, contraseña y direcciones. Durante
+        esos 30 días puede cancelar la eliminación iniciando sesión. Los registros de ventas, pagos, apartados y
+        abonos que la ley obliga a conservar se mantienen sin datos que le identifiquen. Los respaldos de seguridad
+        que todavía contengan sus datos se sustituyen periódicamente. Más detalles en{" "}
+        <Link to="/eliminar-cuenta">Eliminar tu cuenta</Link>.
       </p>
       <p>
         Si lo desea, le proporcionamos un formato de solicitud en la tienda o por correo. Si considera que su

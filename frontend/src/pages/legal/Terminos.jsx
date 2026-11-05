@@ -91,8 +91,13 @@ function Terminos() {
           quedar ligada a su historial de compras y apartados.
         </li>
         <li>
-          Puede corregir su nombre, correo y teléfono desde su perfil en el sitio web, y solicitar la baja de su
-          cuenta en cualquier momento por los medios del Aviso de privacidad.
+          Puede corregir su nombre, correo y teléfono desde su perfil en el sitio web.
+        </li>
+        <li>
+          Puede <strong>eliminar su cuenta</strong> en cualquier momento desde su perfil, en el sitio web o en la
+          app, confirmando con su contraseña. La cuenta se desactiva de inmediato y sus datos personales se borran a
+          los 30 días; si inicia sesión antes, la eliminación se cancela. Si tiene un apartado activo, primero debe
+          liquidarlo o cancelarlo. Vea <Link to="/eliminar-cuenta">Eliminar tu cuenta</Link>.
         </li>
         <li>
           Podemos suspender o cancelar una cuenta que se use para suplantar a otra persona, intentar acceder sin

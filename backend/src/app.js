@@ -11,6 +11,8 @@ import inventarioRoutes from "./routes/inventarioRoutes.js";
 import { raspProtection } from "./middlewares/rasp.js";
 import alexaRoutes from "./routes/alexaRoutes.js";
 import mlRoutes from "./routes/mlRoutes.js";
+import { asegurarColumnasSeguridad } from "./config/schema.js";
+import { iniciarTareaAnonimizacion } from "./jobs/anonimizacion.js";
 const app = express();
 
 app.set("trust proxy", 1);
@@ -42,6 +44,13 @@ app.use("/api/ventas", ventasRoutes);
 app.use("/api/inventario", inventarioRoutes);
 app.use("/api/ml", mlRoutes);
 app.use("/api/alexa", alexaRoutes);
+
+// Columnas de seguridad.personas que usan registro, login y eliminación de
+// cuentas (ALTER TABLE ... IF NOT EXISTS: no cambia nada si ya existen).
+asegurarColumnasSeguridad().catch((error) =>
+  console.error("❌ No se pudieron preparar las columnas de seguridad:", error.message)
+);
+iniciarTareaAnonimizacion();
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () =>

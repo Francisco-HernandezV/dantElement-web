@@ -3,7 +3,14 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { hashPin } from "../services/tokenService.js";
-import { sendVerificationEmail, sendResetEmail } from "../services/mailService.js";
+import { sendVerificationEmail, sendResetEmail, sendAccountDeletionEmail } from "../services/mailService.js";
+import {
+  cancelarEliminacion,
+  fechaAnonimizacion,
+  marcarEliminacion,
+  MENSAJE_APARTADO_ACTIVO,
+  tieneApartadoActivo,
+} from "../services/cuentaService.js";
 import { generateToken, hashToken } from "../services/tokenService.js";
 import { asegurarColumnasSeguridad, TERMINOS_VERSION, AVISO_VERSION } from "../config/schema.js";
 
@@ -51,7 +58,7 @@ export const registrarUsuario = async (req, res) => {
 
     // 1. ¿Ya existe una persona con ese correo? (el teléfono NO se usa para vincular)
     const { rows: encontradas } = await client.query(
-      `SELECT id, password_hash, email_verificado, cuenta_activa, es_empleado
+      `SELECT id, password_hash, email_verificado, cuenta_activa, es_empleado, eliminado_en
          FROM seguridad.personas
         WHERE LOWER(email) = LOWER($1)
         LIMIT 1
@@ -63,6 +70,14 @@ export const registrarUsuario = async (req, res) => {
     // 2. Cuenta ya en uso: verificada, activa o de un empleado.
     //    Una cuenta web que nunca se confirmó sí puede registrarse de nuevo
     //    (así nadie bloquea un correo ajeno registrándolo primero).
+    // Eliminación pendiente: se cancela iniciando sesión, no registrándose otra vez.
+    if (existente?.eliminado_en) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: "Esta cuenta está programada para eliminarse. Si quieres conservarla, inicia sesión con tu contraseña.",
+      });
+    }
+
     const cuentaEnUso = existente?.password_hash && (
       existente.email_verificado === true ||
       existente.cuenta_activa === true ||
@@ -208,11 +223,12 @@ export const activarCuenta = async (req, res) => {
 // ════════════════════════════════════════════════════════════
 export const loginUsuario = async (req, res) => {
   try {
+    await asegurarColumnasSeguridad();
     const { email, password } = req.body;
 
     // 🔥 Modificación: Añadimos requiere_cambio_password y apuntamos al esquema seguridad
     const result = await pool.query(
-      `SELECT u.id, u.nombre, u.password_hash, u.cuenta_activa, u.login_attempts, u.lock_until, u.token_version, u.requiere_cambio_password, r.nombre AS rol
+      `SELECT u.id, u.nombre, u.password_hash, u.cuenta_activa, u.login_attempts, u.lock_until, u.token_version, u.requiere_cambio_password, u.eliminado_en, r.nombre AS rol
        FROM seguridad.personas u
        LEFT JOIN seguridad.roles r ON r.id = u.rol_id
        WHERE LOWER(u.email) = LOWER($1)`,
@@ -231,7 +247,9 @@ export const loginUsuario = async (req, res) => {
         message: `Cuenta bloqueada temporalmente por intentos fallidos. Intenta en 15 minutos.`,
       });
     }
-    if (!user.cuenta_activa) {
+    // Una cuenta con eliminación pendiente está inactiva, pero si el titular
+    // inicia sesión con su contraseña dentro de los 30 días, se cancela.
+    if (!user.cuenta_activa && !user.eliminado_en) {
       return res.status(403).json({ message: "Cuenta inactiva. Revisa tu correo para activarla." });
     }
 
@@ -255,6 +273,12 @@ export const loginUsuario = async (req, res) => {
        WHERE id = $1`,
       [user.id]
     );
+
+    let eliminacionCancelada = false;
+    if (user.eliminado_en) {
+      await cancelarEliminacion(pool, user.id);
+      eliminacionCancelada = true;
+    }
 
     // 🔥 NUEVA LÓGICA: Si requiere cambio de contraseña, enviamos un token temporal (15 min) y la bandera
     if (user.requiere_cambio_password) {
@@ -281,7 +305,10 @@ export const loginUsuario = async (req, res) => {
     );
 
     return res.json({
-      message: "Login exitoso",
+      message: eliminacionCancelada
+        ? "Se canceló la eliminación de tu cuenta. Bienvenido de nuevo."
+        : "Login exitoso",
+      eliminacionCancelada,
       requirePasswordChange: false,
       token,
       usuario: { 
@@ -530,6 +557,76 @@ export const resetPassword = async (req, res) => {
   } catch (e) {
     console.error(e);
     return res.status(500).json({ message: "Error interno" });
+  }
+};
+
+// ════════════════════════════════════════════════════════════
+//  ELIMINAR MI CUENTA (cliente)
+// ════════════════════════════════════════════════════════════
+//
+// Bloquea la cuenta de inmediato y la anonimiza a los 30 días (ver
+// services/cuentaService.js). Pide la contraseña para confirmar.
+export const eliminarCuenta = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await asegurarColumnasSeguridad();
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: "Escribe tu contraseña para confirmar." });
+    }
+
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT id, nombre, email, password_hash, es_empleado, eliminado_en
+         FROM seguridad.personas
+        WHERE id = $1
+        FOR UPDATE`,
+      [req.user.id]
+    );
+    const persona = rows[0];
+    if (!persona) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Cuenta no encontrada." });
+    }
+    if (persona.es_empleado) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({
+        message: "Las cuentas del personal las da de baja el administrador de la tienda.",
+      });
+    }
+
+    const correcta = persona.password_hash && (await bcrypt.compare(password, persona.password_hash));
+    if (!correcta) {
+      await client.query("ROLLBACK");
+      // 400 y no 401: la app móvil cierra la sesión ante cualquier 401/403.
+      return res.status(400).json({ message: "La contraseña no es correcta." });
+    }
+
+    if (await tieneApartadoActivo(client, persona.id)) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ message: MENSAJE_APARTADO_ACTIVO });
+    }
+
+    await marcarEliminacion(client, persona.id);
+    await client.query("COMMIT");
+
+    const fecha = fechaAnonimizacion();
+    if (persona.email) {
+      sendAccountDeletionEmail(persona.email, persona.nombre, fecha).catch(() => {});
+    }
+
+    return res.json({
+      message:
+        "Tu cuenta se desactivó y tus datos personales se borrarán en 30 días. " +
+        "Si cambias de opinión, inicia sesión antes de esa fecha.",
+      anonimizacion_programada: fecha.toISOString(),
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Error eliminarCuenta:", error);
+    return res.status(500).json({ message: "No se pudo eliminar la cuenta. Inténtalo de nuevo." });
+  } finally {
+    client.release();
   }
 };
 

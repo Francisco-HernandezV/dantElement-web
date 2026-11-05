@@ -17,9 +17,13 @@ function LegalLayout({ titulo, version, vigencia, children }) {
       <main className="legal-page">
         <article className="legal-doc">
           <h1>{titulo}</h1>
-          <p className="legal-meta">
-            Versión {version} · Vigente desde el {vigencia}
-          </p>
+          {version && vigencia ? (
+            <p className="legal-meta">
+              Versión {version} · Vigente desde el {vigencia}
+            </p>
+          ) : (
+            <p className="legal-meta">DanElement Boutique</p>
+          )}
           {children}
         </article>
       </main>
@@ -30,8 +34,8 @@ function LegalLayout({ titulo, version, vigencia, children }) {
 
 LegalLayout.propTypes = {
   titulo: PropTypes.string.isRequired,
-  version: PropTypes.string.isRequired,
-  vigencia: PropTypes.string.isRequired,
+  version: PropTypes.string,
+  vigencia: PropTypes.string,
   children: PropTypes.node.isRequired,
 };
 
