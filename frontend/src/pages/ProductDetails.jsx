@@ -49,7 +49,13 @@ function ProductDetails() {
       </div>
     </div>
   );
-  if (!product) return <div className="not-found" style={estadoStyle}>Producto no encontrado</div>;
+  if (!product) return (
+    <div className="not-found" style={estadoStyle}>
+      {navigator.onLine
+        ? "Producto no encontrado"
+        : "Sin conexión: este producto no se ha guardado para verse sin internet."}
+    </div>
+  );
 
   const imagenes = product.imagenes || [];
   const principal = imagenes[imagenActiva]?.url;
