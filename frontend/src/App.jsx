@@ -1,11 +1,13 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import PropTypes from "prop-types";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { SearchProvider } from "./context/SearchContext";
 import { ConfigProvider } from "./context/ConfigContext";
 
 // ── VISTA INICIAL (carga inmediata: es la primera pantalla / LCP) ──
 import Home             from "./pages/Home";
 import ProtectedRoute   from "./components/ProtectedRoute";
+import ChunkErrorBoundary from "./components/ChunkErrorBoundary";
 
 // ── VISTAS PÚBLICAS (carga diferida) ──
 const Catalog           = lazy(() => import("./pages/Catalog"));
@@ -17,6 +19,7 @@ const AccountActivation = lazy(() => import("./pages/AccountActivation"));
 const Terminos          = lazy(() => import("./pages/legal/Terminos"));
 const Privacidad        = lazy(() => import("./pages/legal/Privacidad"));
 const EliminarCuenta    = lazy(() => import("./pages/legal/EliminarCuenta"));
+const QuienesSomos      = lazy(() => import("./pages/QuienesSomos"));
 
 // ── VISTAS PRIVADAS / USUARIO ──
 const UserProfile       = lazy(() => import("./pages/UserProfile"));
@@ -58,11 +61,24 @@ function RouteFallback() {
   );
 }
 
+// Envuelve las rutas para que, si el código de una página no se puede
+// descargar (p. ej. sin internet), se muestre un aviso en vez de una pantalla
+// negra. resetKey = ruta actual: al navegar a otra página se limpia el error.
+function RutasConRespaldo({ children }) {
+  const location = useLocation();
+  return <ChunkErrorBoundary resetKey={location.pathname}>{children}</ChunkErrorBoundary>;
+}
+
+RutasConRespaldo.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
 function App() {
   return (
     <ConfigProvider>
     <SearchProvider>
       <BrowserRouter>
+        <RutasConRespaldo>
         <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* ── RUTAS PÚBLICAS ── */}
@@ -76,6 +92,7 @@ function App() {
           <Route path="/terminos"           element={<Terminos />} />
           <Route path="/privacidad"         element={<Privacidad />} />
           <Route path="/eliminar-cuenta"    element={<EliminarCuenta />} />
+          <Route path="/quienes-somos"      element={<QuienesSomos />} />
           <Route path="/error-400"          element={<Error400 />} />
           <Route path="/error-500"          element={<Error500 />} />
 
@@ -128,6 +145,7 @@ function App() {
           <Route path="*" element={<Error404 />} />
         </Routes>
         </Suspense>
+        </RutasConRespaldo>
       </BrowserRouter>
     </SearchProvider>
     </ConfigProvider>

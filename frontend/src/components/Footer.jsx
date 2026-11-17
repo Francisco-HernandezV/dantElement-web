@@ -47,6 +47,7 @@ function Footer() {
           <a href="/catalogo/hombre">Hombre</a>
           <a href="/catalogo/mujer">Mujer</a>
           <a href="/catalogo/ofertas">Ofertas</a>
+          <a href="/quienes-somos">Quiénes somos</a>
         </div>
 
         <div className="footer-column">
