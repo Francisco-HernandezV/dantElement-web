@@ -1,13 +1,22 @@
 import { Link } from "react-router-dom";
 import LegalLayout from "./LegalLayout";
+import useOnline from "../../hooks/useOnline";
 
 /**
  * Página pública con los pasos para eliminar la cuenta. Google Play pide una
  * dirección web así para las apps que permiten crear cuentas.
  */
 function EliminarCuenta() {
+  const online = useOnline();
+
   return (
     <LegalLayout titulo="Eliminar tu cuenta">
+      {!online && (
+        <p className="legal-aviso" role="status">
+          <strong>Estás sin conexión.</strong> Puedes leer esta página, pero para eliminar tu cuenta
+          necesitas internet: el borrado se hace en nuestro servidor.
+        </p>
+      )}
       <p>
         Puedes eliminar tu cuenta de DanElement Boutique en cualquier momento, desde la aplicación móvil
         DanElement, desde este sitio web o escribiéndonos.

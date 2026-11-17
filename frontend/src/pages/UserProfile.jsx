@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import api from "../services/api";
+import useOnline from "../hooks/useOnline";
 import "../styles/theme.css";
 
 function UserProfile() {
@@ -20,6 +21,7 @@ function UserProfile() {
   const [passwordBaja, setPasswordBaja] = useState("");
   const [errorBaja, setErrorBaja] = useState("");
   const [eliminando, setEliminando] = useState(false);
+  const online = useOnline();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -59,6 +61,10 @@ function UserProfile() {
     setErrorBaja("");
     if (!passwordBaja) {
       setErrorBaja("Escribe tu contraseña para confirmar.");
+      return;
+    }
+    if (!navigator.onLine) {
+      setErrorBaja("Necesitas conexión a internet para eliminar tu cuenta.");
       return;
     }
     setEliminando(true);
@@ -160,13 +166,18 @@ function UserProfile() {
                       onChange={(e) => setPasswordBaja(e.target.value)}
                     />
                   </div>
+                  {!online && !errorBaja && (
+                    <p style={{color: "#f59e0b", fontSize: "0.9rem", marginBottom: "12px"}}>
+                      Estás sin conexión: necesitas internet para eliminar tu cuenta.
+                    </p>
+                  )}
                   {errorBaja && (
                     <p style={{color: "#ef4444", fontSize: "0.9rem", marginBottom: "12px"}}>{errorBaja}</p>
                   )}
                   <div style={{display: "flex", gap: "10px", flexWrap: "wrap"}}>
                     <button
                       type="submit"
-                      disabled={eliminando}
+                      disabled={eliminando || !online}
                       style={{background: "#ef4444", color: "white", width: "auto", padding: "10px 18px"}}
                     >
                       {eliminando ? "Eliminando..." : "Sí, eliminar mi cuenta"}

@@ -5,6 +5,7 @@ import "../styles/theme.css";
 import { useSearch } from "../context/SearchContext";
 import { useConfig } from "../context/ConfigContext";
 import { cldUrl } from "../utils/cloudinary";
+import VoiceSearchButton from "./VoiceSearchButton";
 
 const SearchIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>);
 const CartIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>);
@@ -29,6 +30,13 @@ function Navbar() {
   useEffect(() => {
     setNavOpen(false);
   }, [location.pathname]);
+
+  // Búsqueda por voz: pone el texto dictado en el buscador y lleva al inicio,
+  // donde se muestran los resultados (igual que al presionar Enter).
+  const handleVoiceResult = (texto) => {
+    setSearchTerm(texto);
+    navigate('/');
+  };
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter') {
@@ -69,7 +77,7 @@ function Navbar() {
           )}
           <span className="logo-text">{config?.nombre_tienda || "DAN ELEMENT"}</span>
         </Link>
-        <div className="search-wrapper">
+        <div className="search-wrapper has-voice">
           <label htmlFor="navbar-search" className="sr-only" style={{display: 'none'}}>Buscar</label>
           <input 
             id="navbar-search"
@@ -83,6 +91,7 @@ function Navbar() {
           <button className="search-btn" onClick={() => navigate('/')} aria-label="Ejecutar búsqueda" type="button">
             <SearchIcon />
           </button>
+          <VoiceSearchButton onResultado={handleVoiceResult} />
         </div>
         <div className="actions">
           <div 
@@ -174,6 +183,7 @@ function Navbar() {
         <Link to="/catalogo/hombre" className={location.pathname.includes("hombre") ? "active" : ""} onClick={() => setNavOpen(false)}>Hombre</Link>
         <Link to="/catalogo/mujer" className={location.pathname.includes("mujer") ? "active" : ""} onClick={() => setNavOpen(false)}>Mujer</Link>
         <Link to="/catalogo/ofertas" className={`sale-link ${location.pathname.includes("ofertas") ? "active" : ""}`} onClick={() => setNavOpen(false)}>Ofertas</Link>
+        <Link to="/quienes-somos" className={location.pathname === "/quienes-somos" ? "active" : ""} onClick={() => setNavOpen(false)}>Nosotros</Link>
       </nav>
     </>
   );

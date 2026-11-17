@@ -1,0 +1,136 @@
+/* Página "Quiénes somos": usa las variables de color y tipografía de theme.css. */
+.quienes-page {
+  background: var(--bg-body);
+  color: var(--text-main);
+  padding: 110px 20px 70px;
+  font-family: var(--font-body);
+}
+
+.quienes-page > * {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.quienes-hero {
+  text-align: center;
+  padding: 24px 0 40px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.quienes-eyebrow {
+  color: var(--color-accent);
+  font-family: var(--font-logo);
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  margin: 0 0 10px;
+}
+
+.quienes-hero h1 {
+  font-family: var(--font-logo);
+  font-size: clamp(1.7rem, 5vw, 2.6rem);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0 0 14px;
+}
+
+.quienes-lead {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.quienes-seccion {
+  padding: 40px 0 0;
+}
+
+.quienes-page h2 {
+  font-family: var(--font-logo);
+  font-size: 1.3rem;
+  margin: 0 0 14px;
+}
+
+.quienes-page p {
+  color: #d0d5db;
+  line-height: 1.75;
+  margin: 0 0 12px;
+}
+
+.quienes-page .quienes-lead {
+  margin: 0 auto;
+}
+
+.quienes-page a {
+  color: var(--color-accent);
+}
+
+.quienes-page a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.quienes-mv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  padding-top: 40px;
+}
+
+.quienes-tarjeta {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 22px;
+}
+
+.quienes-mv .quienes-tarjeta {
+  border-top: 3px solid var(--color-accent);
+}
+
+.quienes-valores {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.quienes-valores h3 {
+  font-family: var(--font-logo);
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.quienes-valores p {
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.quienes-visita {
+  text-align: center;
+}
+
+.quienes-page .quienes-cta {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 12px 28px;
+  border-radius: 50px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-logo);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.85rem;
+}
+
+.quienes-page .quienes-cta:hover {
+  background: var(--color-accent-hover);
+  color: #fff;
+  text-decoration: none;
+}
